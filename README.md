@@ -1,89 +1,113 @@
 # Vintage Art Engine
 
-Convert photographs into bold, two-tone vintage-style artwork using a square mesh halftone, circular dots, or blocky dithering.
+Generate bold two-tone vintage artwork and turn it into printable memory poster cards.
 
-![Example output](ag-out.png)
+![Example output](examples/output/ag-out.png)
 
-## Features
+## Project layout
 
-- Converts common image formats supported by Pillow into RGB PNG artwork.
-- Three rendering styles: `mesh`, `dots`, and `dither`.
-- Adjustable contrast, gamma, blur, local contrast, grain, tone range, and output scale.
-- Custom background and foreground colors using hexadecimal values.
-- Reproducible results through a configurable random seed.
-
-## Requirements
-
-- Python 3.9+
-- Pillow
-- NumPy
-
-Install the dependencies with:
-
-```bash
-python -m pip install pillow numpy
+```text
+src/vintage_art/
+├── engine.py       # Image transformation engine
+├── poster.py       # Poster-card composition and CLI
+└── api.py          # FastAPI prototype
+examples/
+├── input/          # Source photographs
+└── output/         # Example generated artwork and cards
 ```
 
-## Usage
+## Installation
 
-Run the engine from this directory:
+Install the package and API dependencies in a virtual environment:
 
 ```bash
-python py-engine.py input.png output.png
+python -m venv .venv
+source .venv/bin/activate       # macOS/Linux
+# .venv\Scripts\Activate.ps1   # PowerShell
+python -m pip install -e ".[api]"
 ```
 
-The default renderer uses the mesh style with a cobalt-blue background and peach foreground. Select another style or customize the palette with options:
+## Generate a poster card
+
+The poster command accepts a raw image, runs it through the vintage engine internally, and saves only the final card:
 
 ```bash
-python py-engine.py input.jpg poster.png \
+vintage-art-card examples/input/image.png examples/output/card.png \
+  --number 2 \
+  --date "19 November 2026" \
+  --title "Unforgettable Moments" \
+  --subtitle "Happen, Stay with me" \
+  --story "For the days we did not know would become memories." \
+  --author "Shin" \
+  --location "Phnom Penh, Cambodia"
+```
+
+The same command can be run without installing the console entry point:
+
+```bash
+python -m vintage_art.poster examples/input/image.png examples/output/card.png
+```
+
+Already-transformed artwork can be placed directly into the card with `--skip-engine`.
+
+## Engine options
+
+The poster command passes the main visual options through to the engine:
+
+```bash
+vintage-art-card examples/input/image.png examples/output/card.png \
   --mode dots \
-  --bg "#101820" \
-  --fg "#F2AA4C" \
   --cell 8 \
-  --contrast 1.7
+  --contrast 1.7 \
+  --bg "#101820" \
+  --fg "#F2AA4C"
 ```
 
-### Rendering modes
+Available modes are `mesh`, `dots`, and `dither`. Use `--help` to see all card and engine options.
 
-| Mode | Description |
-| --- | --- |
-| `mesh` | Square screen pattern with holes that shrink as tones become brighter. |
-| `dots` | Circular halftone dots whose size follows the source image tones. |
-| `dither` | Blocky ordered dithering for a pixel-art appearance. |
+## API prototype
 
-## Options
-
-| Option | Default | Purpose |
-| --- | ---: | --- |
-| `--mode` | `mesh` | Rendering mode: `mesh`, `dots`, or `dither`. |
-| `--width` | `1400` | Working width in pixels before rendering. |
-| `--cell` | `6` | Mesh/dot cell size, or dither block size. |
-| `--contrast` | `1.5` | Global contrast multiplier. |
-| `--gamma` | `1.0` | Tone curve; values below 1 brighten and values above 1 darken. |
-| `--blur` | `0.8` | Gaussian blur applied before tone mapping. |
-| `--local` | `0.8` | Local contrast enhancement. |
-| `--grain` | `0.07` | Random variation that breaks up edges. |
-| `--floor` | `0.25` | Lower tone cutoff. |
-| `--ceil` | `0.95` | Upper tone cutoff. |
-| `--bg` | `#0A3EA8` | Background color. |
-| `--fg` | `#F4C49A` | Foreground color. |
-| `--invert` | off | Invert the source tones before rendering. |
-| `--scale` | `1` | Nearest-neighbour upscale factor. |
-| `--seed` | `7` | Random seed for repeatable grain. |
-
-To see every available argument:
+Start the local API:
 
 ```bash
-python py-engine.py --help
+uvicorn vintage_art.api:app --reload
 ```
 
-## How it works
+Generate a card from a raw image and receive only the final PNG:
 
-1. The input image is orientation-corrected, converted to grayscale, and resized.
-2. Contrast, blur, gamma, and local contrast adjustments create a normalized tone map.
-3. The selected renderer converts that tone map into a binary foreground mask.
-4. The mask is composited onto the chosen two-color palette and saved to the output path.
+```bash
+curl -X POST http://127.0.0.1:8000/generate-card \
+  -F "image=@examples/input/image.png" \
+  -F "number=2" \
+  -F "date=19 November 2026" \
+  -F "title=Unforgettable Moments" \
+  -F "subtitle=Happen, Stay with me" \
+  -F "story=For the days we did not know would become memories." \
+  -F "author=Shin" \
+  -F "location=Phnom Penh, Cambodia" \
+  -o examples/output/api-card.png
+```
+
+The API keeps the transformed image temporary and deletes it after the response.
+
+## Poster-card fields
+
+- `--number` - large card number.
+- `--date` - muted date below the number.
+- `--title` - changeable uppercase title.
+- `--subtitle` - bold supporting line.
+- `--story` - memory text or caption.
+- `--author` and `--location` - muted metadata shown as `AUTHOR | LOCATION`.
+- `--accent` - yellow accent-box color.
+
+## How the engine works
+
+1. Corrects image orientation and converts the source to grayscale.
+2. Resizes and adjusts contrast, gamma, blur, and local detail.
+3. Renders a mesh, dot, or dither mask.
+4. Applies the selected two-color palette.
+5. Places the result into the poster-card layout with typography and metadata.
 
 ## License
 
-No license is currently specified. The current project developed to convert any image, especially tourism photograph, to turn it into vintage unforgetable memories.
+No license is currently specified for this repository.
