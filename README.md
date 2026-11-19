@@ -2,7 +2,7 @@
 
 Convert photographs into bold, two-tone vintage-style artwork using a square mesh halftone, circular dots, or blocky dithering.
 
-![Example output](output.png)
+![Example output](ag-out.png)
 
 ## Features
 
